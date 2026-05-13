@@ -1,0 +1,315 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Liquid Glass — design tokens
+   ────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --bg-0: #f4f5f7;
+  --bg-1: #ffffff;
+  --fg-0: #0a0a0c;
+  --fg-1: #3a3a40;
+  --fg-2: #6e6e76;
+  --line: rgba(10, 10, 12, 0.08);
+  --line-strong: rgba(10, 10, 12, 0.16);
+  --glass: rgba(255, 255, 255, 0.55);
+  --glass-strong: rgba(255, 255, 255, 0.75);
+  --glass-stroke: rgba(255, 255, 255, 0.85);
+  --glass-shadow: 0 8px 32px rgba(10, 10, 12, 0.12), 0 2px 8px rgba(10, 10, 12, 0.06);
+  --specular: rgba(255, 255, 255, 0.55);
+  --accent: #0a0a0c;
+  --accent-fg: #ffffff;
+}
+
+.dark {
+  --bg-0: #07070a;
+  --bg-1: #0e0e12;
+  --fg-0: #f4f5f7;
+  --fg-1: #cfcfd6;
+  --fg-2: #8d8d96;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --glass: rgba(20, 20, 24, 0.55);
+  --glass-strong: rgba(20, 20, 24, 0.75);
+  --glass-stroke: rgba(255, 255, 255, 0.14);
+  --glass-shadow: 0 8px 40px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.35);
+  --specular: rgba(255, 255, 255, 0.18);
+  --accent: #ffffff;
+  --accent-fg: #0a0a0c;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, Inter, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg-0);
+  color: var(--fg-0);
+  overflow: hidden;
+}
+
+/* The "world" behind the glass — coloured aurora blobs so the refraction
+   filter has something interesting to bend. */
+.aurora {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.aurora::before,
+.aurora::after {
+  content: '';
+  position: absolute;
+  width: 60vmax;
+  height: 60vmax;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.55;
+  will-change: transform;
+}
+
+.aurora::before {
+  background: radial-gradient(circle at 30% 30%, #9aa0ff 0%, transparent 60%);
+  top: -20vmax;
+  left: -10vmax;
+  animation: float-a 22s ease-in-out infinite alternate;
+}
+
+.aurora::after {
+  background: radial-gradient(circle at 70% 70%, #ffb0c8 0%, transparent 60%);
+  bottom: -25vmax;
+  right: -15vmax;
+  animation: float-b 26s ease-in-out infinite alternate;
+}
+
+.dark .aurora::before {
+  background: radial-gradient(circle at 30% 30%, #3b3f8a 0%, transparent 60%);
+  opacity: 0.7;
+}
+.dark .aurora::after {
+  background: radial-gradient(circle at 70% 70%, #6a3050 0%, transparent 60%);
+  opacity: 0.6;
+}
+
+@keyframes float-a {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(8vmax, 4vmax, 0) scale(1.1); }
+}
+@keyframes float-b {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(-6vmax, -8vmax, 0) scale(1.15); }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Glass surface — the building block reused by the top bar, sidebar,
+   table, dropzone, and modal-ish elements.
+   ────────────────────────────────────────────────────────────────────── */
+
+.glass {
+  position: relative;
+  background: var(--glass);
+  border: 1px solid var(--glass-stroke);
+  border-radius: 20px;
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(50px) saturate(180%);
+  -webkit-backdrop-filter: blur(50px) saturate(180%);
+  isolation: isolate;
+}
+
+/* The "edge highlight" — a thin gradient stroke that mimics light catching
+   on the rim of curved glass. Pure CSS; no extra DOM. */
+.glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.85) 0%,
+    rgba(255, 255, 255, 0.05) 35%,
+    rgba(255, 255, 255, 0) 60%,
+    rgba(255, 255, 255, 0.25) 100%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.dark .glass::before {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.35) 0%,
+    rgba(255, 255, 255, 0.02) 35%,
+    rgba(255, 255, 255, 0) 60%,
+    rgba(255, 255, 255, 0.10) 100%
+  );
+}
+
+/* Specular glint — a soft radial highlight whose centre follows the mouse,
+   simulating a point light reflecting off a curved surface. The position is
+   driven by --mx / --my (set in JS, see useMousePosition). */
+.glass-specular {
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-specular::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    280px circle at var(--mx, 50%) var(--my, 0%),
+    var(--specular),
+    transparent 60%
+  );
+  pointer-events: none;
+  z-index: 1;
+  mix-blend-mode: overlay;
+  transition: opacity 200ms ease;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   The refracting top bar.
+   The SVG filter (#liquid-refraction) is what bends the background; we just
+   apply it via backdrop-filter and let the displacement map do the work.
+   ────────────────────────────────────────────────────────────────────── */
+
+.refract-bar {
+  backdrop-filter: blur(40px) saturate(180%) url(#liquid-refraction);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+}
+
+/* Firefox can't compose backdrop-filter + SVG url() yet — fall back to a
+   pure blur there so the layout still feels glassy. */
+@-moz-document url-prefix() {
+  .refract-bar {
+    backdrop-filter: blur(40px) saturate(180%);
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Buttons — Claude-style high-contrast pair.
+   ────────────────────────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1rem;
+  border-radius: 999px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  line-height: 1;
+  transition: transform 120ms ease, background 180ms ease, color 180ms ease, border-color 180ms ease;
+  white-space: nowrap;
+  user-select: none;
+  cursor: pointer;
+}
+.btn:active { transform: translateY(1px) scale(0.98); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: 1px solid var(--accent);
+}
+.btn-primary:hover:not(:disabled) { filter: brightness(1.1); }
+
+.btn-secondary {
+  background: transparent;
+  color: var(--fg-0);
+  border: 1px solid var(--line-strong);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--glass);
+  border-color: var(--fg-0);
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  color: var(--fg-1);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease, transform 100ms ease;
+  cursor: pointer;
+}
+.icon-btn:hover {
+  background: var(--glass);
+  color: var(--fg-0);
+  border-color: var(--line);
+}
+.icon-btn:active { transform: scale(0.94); }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Scrollbars, focus rings, misc.
+   ────────────────────────────────────────────────────────────────────── */
+
+.scroll-area {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.scroll-area::-webkit-scrollbar { width: 10px; height: 10px; }
+.scroll-area::-webkit-scrollbar-track { background: transparent; }
+.scroll-area::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+:focus-visible {
+  outline: 2px solid var(--fg-0);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.material-symbols-rounded {
+  font-variation-settings: 'opsz' 24, 'wght' 400, 'FILL' 0, 'GRAD' 0;
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* Dropzone "entry" — fades in plus a halo while it's drag-over. */
+.dropzone-halo {
+  box-shadow:
+    0 0 0 1px var(--line-strong),
+    0 0 0 8px rgba(154, 160, 255, 0.18),
+    0 30px 80px rgba(10, 10, 12, 0.2);
+}
+
+.shimmer-bg {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+}
+.dark .shimmer-bg {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+}
