@@ -1,9 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 // Build output goes to ./dist — drop it straight into a Cloudflare Pages project.
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), cloudflare()],
   worker: {
     format: 'es'
   },
